@@ -1,0 +1,6 @@
+{
+	"SQLHOST": "localhost",
+	"SQLUSER": "root",
+	"SQLPASS": "",
+	"SQLDB": "overcast2_db"
+}
