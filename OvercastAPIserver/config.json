@@ -2,5 +2,7 @@
 	"SQLHOST": "localhost",
 	"SQLUSER": "root",
 	"SQLPASS": "",
-	"SQLDB": "overcast2_db"
+	"SQLDB": "overcast2_db",
+	"SERVERADMINUSER": "Admin",
+	"SERVERADMINPASS": "Ov3rC4stPas5_67!"
 }
