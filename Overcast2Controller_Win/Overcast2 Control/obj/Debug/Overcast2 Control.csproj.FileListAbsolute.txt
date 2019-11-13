@@ -1,0 +1,9 @@
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\bin\Debug\Overcast2 Control.exe.config
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\bin\Debug\Overcast2 Control.exe
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\bin\Debug\Overcast2 Control.pdb
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\obj\Debug\Overcast2 Control.csprojAssemblyReference.cache
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\obj\Debug\Overcast2_Control.Form1.resources
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\obj\Debug\Overcast2_Control.Properties.Resources.resources
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\obj\Debug\Overcast2 Control.csproj.GenerateResource.cache
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\obj\Debug\Overcast2 Control.exe
+D:\Overcast\Overcast_v2\Overcast2Controller_Win\Overcast2 Control\obj\Debug\Overcast2 Control.pdb

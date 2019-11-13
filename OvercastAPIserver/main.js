@@ -13,6 +13,8 @@ const conf_file = "config.json"
 const conf_default_values = '{\n\t"SQLHOST": "localhost",\n\t"SQLUSER": "username",\n\t"SQLPASS": "secretpass",\n\t"SQLDB": "overcast2_db",\n\t"SERVERADMINUSER": "Admin",\n\t"SERVERADMINPASS": "Ov3rC4stPas5_67!"\n}'
 const sql_connect_fail = "Unable to Connect to SQL Server"
 const sql_connect_success = "successfully Connected to SQL Server"
+const auth_time_length = "10"
+
 
 function ProcessArgs() {
     try {
@@ -260,9 +262,39 @@ function StartOvercastServer() {
     console.log("Attempting to Start Overcast Server...")
 
     const config = ParseConfig()
-    
 
+    
+    
+    // ## Get Root ###
     app.get("/", (req, res) =>{
+        // The agents always run this before any other function to check that server is up.
+        // So lets use this to continuesly delete old data such as expired tokens
+        try {
+            var con = mysql.createConnection({
+                host: config.SQLHOST,
+                user: config.SQLUSER,
+                password: config.SQLPASS,
+                database: config.SQLDB,
+                multipleStatements: true
+            })
+            con.connect(function(err) {
+                if (err) {
+                    console.log("Unable to connect to SQL for deleting old tokens")
+                }
+                // First Test That They Have an Auth Token
+                sql = "DELETE FROM `auth_tokens` WHERE auth_token_expire < current_timestamp();"
+                con.query(sql, function (err, result, fields) {
+                    if (err) {
+                        console.log("Unable to delete old tokens")
+                    }
+                });
+            });
+        } catch (error) {
+            console.log("Unable to delete old tokens")
+        }
+
+
+        // Actual get / code
         console.log("Requested /")
         const response =    {Online: true}
         res.json(response)
@@ -272,73 +304,248 @@ function StartOvercastServer() {
     // ### Agents ### 
 
     // GET - Get Agent Details with user and pass
-    app.get("/agents", (req, res) =>{
-        console.log("Requested To Get Agent Details")
-        console.log(req.body)
-        const response =    {Online: true}
-        res.json(response)
+    app.get("/agents/byid", (req, res) =>{
+        console.log("Requested To Get Agent By ID")
+        try {
+            var url_parts = url.parse(req.url, true);
+            var auth = url_parts.query;
+            var user_id = auth.user_id
+            var auth_token = auth.auth_token
+            var agent_id = auth.agent_id
+
+            var con = mysql.createConnection({
+                host: config.SQLHOST,
+                user: config.SQLUSER,
+                password: config.SQLPASS,
+                database: config.SQLDB,
+                multipleStatements: true
+            })
+            con.connect(function(err) {
+                if (err) {
+                    res.json({id: 0})
+                }
+                // First Test That They Have an Auth Token
+                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                con.query(sql, function (err, result, fields) {
+                if (err) {
+                    res.json({id: 0})
+                } else {
+                    if (result.length > 0) {
+                            // Passed auth so lets do stuff
+                            sql = "SELECT * FROM `agents` WHERE id = '" + agent_id + "' AND created_by = " + user_id + " LIMIT 1;"
+                            con.query(sql, function (err, result, fields) {
+                                if (err) {
+                                    res.json({id: 0})
+                                } else {
+                                    res.json(result[0])
+                                }
+                            });
+                            
+                            con.end()
+                    } else {
+                        res.json({id: 0})
+                    }
+                }
+                });
+            });
+        } catch (error) {
+            res.json({agentId: 0})
+        }
     })
 
     // POST - Initial Agent Registration that will return its agent ID
     app.post('/agents', (req, res) => {
         console.log("Requested To Register Agent")
         try {
-            if (req.body.registered == 0) {
-                var con = mysql.createConnection({
-                    host: config.SQLHOST,
-                    user: config.SQLUSER,
-                    password: config.SQLPASS,
-                    database: config.SQLDB,
-                    multipleStatements: true
-                })
-                con.connect(function(err) {
-                    if (err) throw err;
-                    hash = bcrypt.hashSync(req.body.password, 10);
-                    var sql = "INSERT INTO `agents` (`id`, `username`, `computer`, `version`, `internal_ip`, `external_ip`, `has_jobs`, `created_at`, `checked_in`, `registered`, `password`, `handler_url`, `sleep_time_ms`, `created_by`, `agent_type`, `killed`) VALUES (NULL, '" + req.body.username + "', '" + req.body.computer + "', '" + req.body.version + "', '" + req.body.internal_ip + "', '" + req.body.external_ip + "', '0', current_timestamp(), current_timestamp(), '1', '" + hash + "', '" + req.body.handler_url + "', '" + req.body.sleep_time_ms + "', '" + req.body.created_by + "', '" + req.body.agent_type + "', '" + req.body.killed + "');";
-                    con.query(sql, function (err, result) {
-                        if (err) throw err;
-                        res.json({agentId: result.insertId}) 
-                    });
-                    con.end()
-                });   
-            }
+            var auth_token = req.body.auth_token
+            var user_id = req.body.created_by
+            var con = mysql.createConnection({
+                host: config.SQLHOST,
+                user: config.SQLUSER,
+                password: config.SQLPASS,
+                database: config.SQLDB,
+                multipleStatements: true
+            })
+            con.connect(function(err) {
+                if (err) {
+                    res.json({agentId: 0})
+                }
+                // First Test That They Have an Auth Token
+                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                con.query(sql, function (err, result, fields) {
+                if (err) {
+                    res.json({agentId: 0})
+                } else {
+                    if (result.length > 0) {
+                            hash = bcrypt.hashSync(req.body.password, 10);
+                            var sql = "INSERT INTO `agents` (`id`, `username`, `computer`, `version`, `internal_ip`, `external_ip`, `has_jobs`, `created_at`, `checked_in`, `registered`, `password`, `handler_url`, `sleep_time_ms`, `created_by`, `agent_type`, `killed`) VALUES (NULL, '" + req.body.username + "', '" + req.body.computer + "', '" + req.body.version + "', '" + req.body.internal_ip + "', '" + req.body.external_ip + "', '0', current_timestamp(), current_timestamp(), '1', '" + hash + "', '" + req.body.handler_url + "', '" + req.body.sleep_time_ms + "', '" + req.body.created_by + "', '" + req.body.agent_type + "', '" + req.body.killed + "');";
+                            con.query(sql, function (err, result) {
+                                if (err) throw err;
+                                res.json({agentId: result.insertId}) 
+                            });
+                            con.end()
+                    } else {
+                        res.json({agentId: 0})
+                    }
+                }
+                });
+            });
         } catch (error) {
             res.json({agentId: 0})
         }
     });
 
-    // PUT - Used For Repeat Agent Check Ins
+    // PUT - Used For Repeat Agent Updates
     app.put('/agents', (req, res) => {
         console.log("Requested To Update Agent Detials")
         try {
-            if (req.body.registered == 1 && req.body.id > 0) {
-                var con = mysql.createConnection({
-                    host: config.SQLHOST,
-                    user: config.SQLUSER,
-                    password: config.SQLPASS,
-                    database: config.SQLDB,
-                    multipleStatements: true
-                })
-                con.connect(function(err) {
-                    if (err) throw err;
-                    var sql = "UPDATE `agents` SET `username` = '" + req.body.username + "', `computer` = '" + req.body.computer + "', `version` = '" + req.body.version + "', `internal_ip` = '" + req.body.internal_ip + "', `external_ip` = '" + req.connection.remoteAddress + "', `checked_in` = current_timestamp() WHERE `agents`.`id` = " + req.body.id + ";";
-                    con.query(sql, function (err, result) {
-                        if (err) throw err;
-                        //res.json({agentId: result.insertId}) 
-                        
-                    });
-                    con.end()
-                });   
-                res.json({updated: 1})
-            } else {
-                res.json({updated: 0})
-            }
+            var auth_token = req.body.auth_token
+            var user_id = req.body.created_by
+            var con = mysql.createConnection({
+                host: config.SQLHOST,
+                user: config.SQLUSER,
+                password: config.SQLPASS,
+                database: config.SQLDB,
+                multipleStatements: true
+            })
+            con.connect(function(err) {
+                if (err) {
+                    res.json({agentId: 0})
+                }
+                // First Test That They Have an Auth Token
+                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                con.query(sql, function (err, result, fields) {
+                if (err) {
+                    res.json({updated: 0})
+                } else {
+                    if (result.length > 0) {
+                        var sql = "UPDATE `agents` SET `username` = '" + req.body.username + "', `computer` = '" + req.body.computer + "', `version` = '" + req.body.version + "', `internal_ip` = '" + req.body.internal_ip + "', `external_ip` = '" + req.connection.remoteAddress + "', `checked_in` = current_timestamp() WHERE `agents`.`id` = " + req.body.id + ";";
+                        con.query(sql, function (err, result) {
+                            if (err) {
+                                res.json({updated: 0})
+                            } else {
+                                res.json({updated: 1})
+                            }
+                        });
+                        con.end()
+                    } else {
+                        res.json({updated: 0})
+                    }
+                }
+                });
+            });
         } catch (error) {
             res.json({updated: 0})
         }
     });
     
+
+    // ### Jobs
+    app.get("/jobs/byagentid", (req, res) =>{
+        console.log("Requested To Get Jobs By Agent ID")
+        try {
+            var url_parts = url.parse(req.url, true);
+            var auth = url_parts.query;
+            var user_id = auth.user_id
+            var auth_token = auth.auth_token
+            var agent_id = auth.agent_id
+
+            var con = mysql.createConnection({
+                host: config.SQLHOST,
+                user: config.SQLUSER,
+                password: config.SQLPASS,
+                database: config.SQLDB,
+                multipleStatements: true
+            })
+            con.connect(function(err) {
+                if (err) {
+                    res.json({id: 0})
+                }
+                // First Test That They Have an Auth Token
+                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                con.query(sql, function (err, result, fields) {
+                if (err) {
+                    res.json({id: 0})
+                } else {
+                    if (result.length > 0) {
+                            // Passed auth so lets do stuff
+                            sql = "SELECT * FROM `agents` WHERE id = '" + agent_id + "' AND created_by = " + user_id + " LIMIT 1;"
+                            con.query(sql, function (err, result, fields) {
+                                if (err) {
+                                    res.json({id: 0})
+                                } else {
+                                    res.json(result[0])
+                                }
+                            });
+                            
+                            con.end()
+                    } else {
+                        res.json({id: 0})
+                    }
+                }
+                });
+            });
+        } catch (error) {
+            res.json({agentId: 0})
+        }
+    })
+
+
+
+
+
+
+
     // ### Auth ###
+
+    app.get("/auth/check", (req, res) =>{
+        try {
+            console.log("Requested To Check Authed")
+            var url_parts = url.parse(req.url, true);
+            var auth = url_parts.query;
+            var user_id = auth.user_id
+            var auth_token = auth.auth_token
+            var con = mysql.createConnection({
+                host: config.SQLHOST,
+                user: config.SQLUSER,
+                password: config.SQLPASS,
+                database: config.SQLDB,
+                multipleStatements: true
+            })
+            con.connect(function(err) {
+
+                if (err) {
+                    console.log("Check Auth Not Authenticated")
+                    var response =    {authenticated: false}
+                    res.send(response)
+                }
+                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                
+                con.query(sql, function (err, result, fields) {
+                if (err) {
+                    console.log("Check Auth Not Authenticated")
+                    var response =    {authenticated: false}
+                    res.json(response)
+                } else {
+                    if (result.length > 0) {
+                        console.log("Check Auth Authenticated")
+                        var response =    {authenticated: true}
+                        res.json(response)
+                    } else {
+                        console.log("Check Auth Not Authenticated")
+                        var response =    {authenticated: false}
+                        res.json(response)
+                    }
+                }
+                });
+            });
+        } catch (error) {
+            console.log("Check Auth Not Authenticated")
+            var response =    {authenticated: false}
+            res.json(response)
+        }
+    })
+
     app.get("/auth", (req, res) =>{
         var url_parts = url.parse(req.url, true);
         var auth = url_parts.query;
@@ -363,7 +570,7 @@ function StartOvercastServer() {
                         // Authenticated so lets add an auth token to the auth token table that expires in 10 mins
                         // Using the DB name, the Username and the current time should create a unique key
                         var auth_token = crypto.createHash('md5').update(config.SQLDB + Date.now() + username).digest("hex")
-                        var insert_auth_token = "INSERT INTO " + config.SQLDB + ".auth_tokens VALUES (null, " + result[0].id + ", '" + auth_token + "', current_timestamp() + INTERVAL 10 MINUTE);"
+                        var insert_auth_token = "INSERT INTO " + config.SQLDB + ".auth_tokens VALUES (null, " + result[0].id + ", '" + auth_token + "', current_timestamp() + INTERVAL " + auth_time_length +" MINUTE);"
                         con.query(insert_auth_token, function (err, result2) {
                             if (err) {
                                 console.log(username + " Authentication Failed")
