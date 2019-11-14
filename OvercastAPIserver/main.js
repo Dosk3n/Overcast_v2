@@ -192,7 +192,7 @@ function InstallOvercastServer() {
                                                     "INSERT INTO " + config.SQLDB + ".agent_types VALUES (2, 'Powershell');" +
                                                     "INSERT INTO " + config.SQLDB + ".agent_types VALUES (3, 'Python');" +
                                                     "INSERT INTO " + config.SQLDB + ".agent_types VALUES (4, 'Kotlin');" + 
-                                                    "INSERT INTO " + config.SQLDB + ".agent_types VALUES (4, 'Java');"
+                                                    "INSERT INTO " + config.SQLDB + ".agent_types VALUES (5, 'Java');"
                 con.query(populate_agent_types_sql, function (err, result) {
                     if (err) {
                         console.log(err)
@@ -323,30 +323,32 @@ function StartOvercastServer() {
             con.connect(function(err) {
                 if (err) {
                     res.json({id: 0})
-                }
-                // First Test That They Have an Auth Token
-                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
-                con.query(sql, function (err, result, fields) {
-                if (err) {
-                    res.json({id: 0})
                 } else {
-                    if (result.length > 0) {
-                            // Passed auth so lets do stuff
-                            sql = "SELECT * FROM `agents` WHERE id = '" + agent_id + "' AND created_by = " + user_id + " LIMIT 1;"
-                            con.query(sql, function (err, result, fields) {
-                                if (err) {
-                                    res.json({id: 0})
-                                } else {
-                                    res.json(result[0])
-                                }
-                            });
-                            
-                            con.end()
-                    } else {
+                    // First Test That They Have an Auth Token
+                    sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                    con.query(sql, function (err, result, fields) {
+                    if (err) {
                         res.json({id: 0})
+                    } else {
+                        if (result.length > 0) {
+                                // Passed auth so lets do stuff
+                                sql = "SELECT * FROM `agents` WHERE id = '" + agent_id + "' AND created_by = " + user_id + " LIMIT 1;"
+                                con.query(sql, function (err, result, fields) {
+                                    if (err) {
+                                        res.json({id: 0})
+                                    } else {
+                                        res.json(result[0])
+                                    }
+                                });
+                                
+                                //con.end()
+                        } else {
+                            res.json({id: 0})
+                        }
                     }
+                    });
                 }
-                });
+                
             });
         } catch (error) {
             res.json({agentId: 0})
@@ -369,26 +371,28 @@ function StartOvercastServer() {
             con.connect(function(err) {
                 if (err) {
                     res.json({agentId: 0})
-                }
-                // First Test That They Have an Auth Token
-                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
-                con.query(sql, function (err, result, fields) {
-                if (err) {
-                    res.json({agentId: 0})
                 } else {
-                    if (result.length > 0) {
-                            hash = bcrypt.hashSync(req.body.password, 10);
-                            var sql = "INSERT INTO `agents` (`id`, `username`, `computer`, `version`, `internal_ip`, `external_ip`, `has_jobs`, `created_at`, `checked_in`, `registered`, `password`, `handler_url`, `sleep_time_ms`, `created_by`, `agent_type`, `killed`) VALUES (NULL, '" + req.body.username + "', '" + req.body.computer + "', '" + req.body.version + "', '" + req.body.internal_ip + "', '" + req.body.external_ip + "', '0', current_timestamp(), current_timestamp(), '1', '" + hash + "', '" + req.body.handler_url + "', '" + req.body.sleep_time_ms + "', '" + req.body.created_by + "', '" + req.body.agent_type + "', '" + req.body.killed + "');";
-                            con.query(sql, function (err, result) {
-                                if (err) throw err;
-                                res.json({agentId: result.insertId}) 
-                            });
-                            con.end()
-                    } else {
+                    // First Test That They Have an Auth Token
+                    sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                    con.query(sql, function (err, result, fields) {
+                    if (err) {
                         res.json({agentId: 0})
+                    } else {
+                        if (result.length > 0) {
+                                hash = bcrypt.hashSync(req.body.password, 10);
+                                var sql = "INSERT INTO `agents` (`id`, `username`, `computer`, `version`, `internal_ip`, `external_ip`, `has_jobs`, `created_at`, `checked_in`, `registered`, `password`, `handler_url`, `sleep_time_ms`, `created_by`, `agent_type`, `killed`) VALUES (NULL, '" + req.body.username + "', '" + req.body.computer + "', '" + req.body.version + "', '" + req.body.internal_ip + "', '" + req.body.external_ip + "', '0', current_timestamp(), current_timestamp(), '1', '" + hash + "', '" + req.body.handler_url + "', '" + req.body.sleep_time_ms + "', '" + req.body.created_by + "', '" + req.body.agent_type + "', '" + req.body.killed + "');";
+                                con.query(sql, function (err, result) {
+                                    if (err) throw err;
+                                    res.json({agentId: result.insertId}) 
+                                });
+                                //con.end()
+                        } else {
+                            res.json({agentId: 0})
+                        }
                     }
+                    });
                 }
-                });
+                
             });
         } catch (error) {
             res.json({agentId: 0})
@@ -411,8 +415,8 @@ function StartOvercastServer() {
             con.connect(function(err) {
                 if (err) {
                     res.json({agentId: 0})
-                }
-                // First Test That They Have an Auth Token
+                } else {
+                    // First Test That They Have an Auth Token
                 sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
                 con.query(sql, function (err, result, fields) {
                 if (err) {
@@ -427,12 +431,13 @@ function StartOvercastServer() {
                                 res.json({updated: 1})
                             }
                         });
-                        con.end()
+                        //con.end()
                     } else {
                         res.json({updated: 0})
                     }
                 }
                 });
+                }
             });
         } catch (error) {
             res.json({updated: 0})
@@ -460,8 +465,8 @@ function StartOvercastServer() {
             con.connect(function(err) {
                 if (err) {
                     res.json({id: 0})
-                }
-                // First Test That They Have an Auth Token
+                } else {
+                    // First Test That They Have an Auth Token
                 sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
                 con.query(sql, function (err, result, fields) {
                 if (err) {
@@ -469,21 +474,33 @@ function StartOvercastServer() {
                 } else {
                     if (result.length > 0) {
                             // Passed auth so lets do stuff
-                            sql = "SELECT * FROM `agents` WHERE id = '" + agent_id + "' AND created_by = " + user_id + " LIMIT 1;"
+                            sql = "SELECT * FROM `jobs` WHERE agent_id = '" + agent_id + "' AND job_fetched = 0;"
                             con.query(sql, function (err, result, fields) {
                                 if (err) {
                                     res.json({id: 0})
                                 } else {
-                                    res.json(result[0])
+                                    jobs_data = result
+                                    sql = "UPDATE `agents` SET has_jobs = 0 WHERE id = " + agent_id
+                                    console.log(sql)
+                                    con.query(sql, function (err, result, fields) {
+                                        if (err) {
+                                            res.json({id: 0})
+                                        } else {
+                                            res.json(jobs_data)
+                                        }
+                                    });
+                                    
+                                    
                                 }
                             });
                             
-                            con.end()
+                            //con.end()
                     } else {
                         res.json({id: 0})
                     }
                 }
                 });
+                }
             });
         } catch (error) {
             res.json({agentId: 0})
@@ -518,26 +535,28 @@ function StartOvercastServer() {
                     console.log("Check Auth Not Authenticated")
                     var response =    {authenticated: false}
                     res.send(response)
-                }
-                sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
-                
-                con.query(sql, function (err, result, fields) {
-                if (err) {
-                    console.log("Check Auth Not Authenticated")
-                    var response =    {authenticated: false}
-                    res.json(response)
                 } else {
-                    if (result.length > 0) {
-                        console.log("Check Auth Authenticated")
-                        var response =    {authenticated: true}
-                        res.json(response)
-                    } else {
+                    sql = "SELECT * FROM `auth_tokens` WHERE auth_token = '" + auth_token + "' AND user_id = " + user_id + " AND auth_token_expire > current_timestamp();"
+                
+                    con.query(sql, function (err, result, fields) {
+                    if (err) {
                         console.log("Check Auth Not Authenticated")
                         var response =    {authenticated: false}
                         res.json(response)
+                    } else {
+                        if (result.length > 0) {
+                            console.log("Check Auth Authenticated")
+                            var response =    {authenticated: true}
+                            res.json(response)
+                        } else {
+                            console.log("Check Auth Not Authenticated")
+                            var response =    {authenticated: false}
+                            res.json(response)
+                        }
                     }
+                    });
                 }
-                });
+                
             });
         } catch (error) {
             console.log("Check Auth Not Authenticated")
@@ -561,34 +580,41 @@ function StartOvercastServer() {
         })
         con.connect(function(err) {
             
-            if (err) throw err;
-            var sql = "SELECT * FROM users WHERE username = '" + username + "' LIMIT 1"
+            if (err) {
+                res.send({authenticated: false})
+            } else {
+                var sql = "SELECT * FROM users WHERE username = '" + username + "' LIMIT 1"
             con.query(sql, function (err, result) {
-                if (err) throw err;
-                if (result.length > 0) {
-                    if(bcrypt.compareSync(password, result[0].password)) {
-                        // Authenticated so lets add an auth token to the auth token table that expires in 10 mins
-                        // Using the DB name, the Username and the current time should create a unique key
-                        var auth_token = crypto.createHash('md5').update(config.SQLDB + Date.now() + username).digest("hex")
-                        var insert_auth_token = "INSERT INTO " + config.SQLDB + ".auth_tokens VALUES (null, " + result[0].id + ", '" + auth_token + "', current_timestamp() + INTERVAL " + auth_time_length +" MINUTE);"
-                        con.query(insert_auth_token, function (err, result2) {
-                            if (err) {
-                                console.log(username + " Authentication Failed")
-                                res.send({authenticated: false})
-                            } else {
-                                console.log(username + " Authenticated")
-                                res.send({authenticated: true, id: result[0].id, username: result[0].username, role: result[0].role, auth_token: auth_token})
-                            }
-                        });
+                if (err) {
+                    res.send({authenticated: false})
+                } else {
+                    if (result.length > 0) {
+                        if(bcrypt.compareSync(password, result[0].password)) {
+                            // Authenticated so lets add an auth token to the auth token table that expires in 10 mins
+                            // Using the DB name, the Username and the current time should create a unique key
+                            var auth_token = crypto.createHash('md5').update(config.SQLDB + Date.now() + username).digest("hex")
+                            var insert_auth_token = "INSERT INTO " + config.SQLDB + ".auth_tokens VALUES (null, " + result[0].id + ", '" + auth_token + "', current_timestamp() + INTERVAL " + auth_time_length +" MINUTE);"
+                            con.query(insert_auth_token, function (err, result2) {
+                                if (err) {
+                                    console.log(username + " Authentication Failed")
+                                    res.send({authenticated: false})
+                                } else {
+                                    console.log(username + " Authenticated")
+                                    res.send({authenticated: true, id: result[0].id, username: result[0].username, role: result[0].role, auth_token: auth_token})
+                                }
+                            });
+                        } else {
+                            console.log(username + " Authentication Failed")
+                            res.send({authenticated: false})
+                        }
                     } else {
                         console.log(username + " Authentication Failed")
                         res.send({authenticated: false})
                     }
-                } else {
-                    console.log(username + " Authentication Failed")
-                    res.send({authenticated: false})
                 }
             });
+            }
+            
         });   
     })
 
